@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-20 통합</title>
+    <title>위험성평가 회의관리 5-21 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -1872,37 +1872,47 @@ ${target.meeting_date} · ${target.title}
             toast(`위험성평가 ${items.length}건을 등록했습니다.`)
         }
         async function cancelRiskDocument(id, path) {
-            if (!confirm('등록한 파일과 해당 파일에서 반영된 위험성평가 항목을 삭제할까요?')) return;
+            if (!confirm('등록한 파일과 해당 파일에서 반영된 위험성평가 항목을 모두 삭제할까요?')) return;
             setMaterialStatus('saving', '등록 취소중...');
             try {
-                await api(`/rest/v1/risk_items?meeting_id=eq.${materialMeeting.id}&company_id=eq.${profile.company_id}&source_type=eq.uploaded_file`, {
+                const cid = profile.company_id;
+                // 같은 회의에 재등록된 이전 Excel 연결정보까지 모두 조회하여 잔존 표시를 방지합니다.
+                const docs = await api(`/rest/v1/attachments?meeting_id=eq.${materialMeeting.id}&company_id=eq.${cid}&attachment_type=eq.risk_document&select=id,object_path`);
+
+                await api(`/rest/v1/risk_items?meeting_id=eq.${materialMeeting.id}&company_id=eq.${cid}&source_type=eq.uploaded_file`, {
                     method: 'DELETE',
-                    headers: {
-                        Prefer: 'return=minimal'
-                    }
+                    headers: { Prefer: 'return=minimal' }
                 });
-                let res = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${path}`, {
+
+                for (const doc of docs) {
+                    if (!doc.object_path) continue;
+                    const res = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${doc.object_path}`, {
+                        method: 'DELETE',
+                        headers: {
+                            apikey: KEY,
+                            Authorization: 'Bearer ' + session.access_token
+                        }
+                    });
+                    if (!res.ok && res.status !== 404) {
+                        const message = await res.text();
+                        if (!/not_found|NoSuchKey|Object not found/i.test(message)) throw Error(message);
+                    }
+                }
+
+                await api(`/rest/v1/attachments?meeting_id=eq.${materialMeeting.id}&company_id=eq.${cid}&attachment_type=eq.risk_document`, {
                     method: 'DELETE',
-                    headers: {
-                        apikey: KEY,
-                        Authorization: 'Bearer ' + session.access_token
-                    }
+                    headers: { Prefer: 'return=minimal' }
                 });
-                if (!res.ok && res.status !== 404) throw Error(await res.text());
-                await api(`/rest/v1/attachments?id=eq.${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        Prefer: 'return=minimal'
-                    }
-                });
+
                 $('excelFile').value = '';
+                $('excelState').innerHTML = '';
                 $('excelImportState').classList.add('hidden');
                 await loadPartnerMaterial();
                 setMaterialStatus('saved', '등록 취소 완료 !');
-                toast('위험성평가 파일 등록을 취소했습니다.')
+                toast('위험성평가 파일과 반영 항목을 모두 삭제했습니다.');
             } catch (e) {
                 setMaterialStatus('error', '등록 취소 실패');
-                toast('등록 취소 실패: ' + e.message)
+                toast('등록 취소 실패: ' + e.message);
             }
         }
 
