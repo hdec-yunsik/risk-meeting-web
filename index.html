@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-22 통합</title>
+    <title>위험성평가 회의관리 5-23 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -991,7 +991,7 @@
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-22 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-23 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1953,7 +1953,7 @@ ${target.meeting_date} · ${target.title}
             let box = $('riskAddBox'), subs = [...new Set(risks.map(r=>r.sub_category).filter(Boolean))], acts = [...new Set(risks.map(r=>r.work_activity).filter(Boolean))];
             const opts = list => list.map(x=>`<option value="${x}">${x}</option>`).join('') + '<option value="__direct__">직접입력</option>';
             box.classList.remove('hidden');
-            box.innerHTML = `<div class="table-wrap"><table class="tbl risk-add-table"><thead><tr><th>세부공종</th><th>작업활동</th><th>위험요인</th><th>등급</th><th>개선대책</th><th>저장</th></tr></thead><tbody><tr><td><select id="raSubSelect" class="risk-source-select" onchange="toggleRiskDirect('Sub')"><option value="">선택</option>${opts(subs)}</select><input id="raSub" class="risk-direct-input hidden" placeholder="세부공종 직접입력"></td><td><select id="raActSelect" class="risk-source-select" onchange="toggleRiskDirect('Act')"><option value="">선택</option>${opts(acts)}</select><input id="raAct" class="risk-direct-input hidden" placeholder="작업활동 직접입력"></td><td><textarea id="raHaz"></textarea></td><td><select id="raGrade" class="risk-grade-select">${riskGrades.map(x=>`<option>${x}</option>`).join('')}</select></td><td><textarea id="raMeasure"></textarea></td><td><button class="btn primary" onclick="saveRiskAdd()">저장</button> <button class="btn" onclick="$ ('riskAddBox').classList.add('hidden')">취소</button></td></tr></tbody></table></div>`.replace('$ (','$(')
+            box.innerHTML = `<div class="table-wrap"><table class="tbl risk-add-table"><thead><tr><th>세부공종</th><th>작업활동</th><th>위험요인</th><th>등급</th><th>개선대책</th><th>저장</th></tr></thead><tbody><tr><td><select id="raSubSelect" class="risk-source-select" onchange="toggleRiskDirect('Sub')"><option value="">선택</option>${opts(subs)}</select><input id="raSub" class="risk-direct-input hidden" placeholder="세부공종 직접입력"></td><td><select id="raActSelect" class="risk-source-select" onchange="toggleRiskDirect('Act')"><option value="">선택</option>${opts(acts)}</select><input id="raAct" class="risk-direct-input hidden" placeholder="작업활동 직접입력"></td><td><textarea id="raHaz"></textarea></td><td><select id="raGrade" class="risk-grade-select">${riskEditGrades.map(x=>`<option>${x}</option>`).join('')}</select></td><td><textarea id="raMeasure"></textarea></td><td><button class="btn primary" onclick="saveRiskAdd()">저장</button> <button class="btn" onclick="$ ('riskAddBox').classList.add('hidden')">취소</button></td></tr></tbody></table></div>`.replace('$ (','$(')
         }
         function toggleRiskDirect(kind) {
             let sel=$('ra'+kind+'Select'), input=$('ra'+kind); input.classList.toggle('hidden', sel.value!=='__direct__'); if(sel.value==='__direct__') input.focus()
