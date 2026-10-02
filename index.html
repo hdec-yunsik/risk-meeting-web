@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-21 통합</title>
+    <title>위험성평가 회의관리 5-22 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -974,6 +974,10 @@
         .tbl.risk-merged td,.tbl.risk-merged th{border-right:1px solid var(--line)}
         .tbl.risk-merged tr.group-start td{border-top:3px solid #334155}
         .next-meeting-note{padding:10px 14px;background:#eff6ff;color:#1d4ed8;font-weight:900;border-bottom:1px solid var(--line)}
+        .meeting-precheck{margin:14px 0 18px;padding:14px 16px;border:1px solid #f59e0b;border-left:6px solid #f59e0b;border-radius:11px;background:#fffbeb;color:#92400e;line-height:1.6;font-weight:800}
+        .meeting-precheck strong{display:block;color:#78350f;margin-bottom:3px}
+        .next-meeting-alert{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+        .next-meeting-alert button{white-space:nowrap}
         </style>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -987,13 +991,17 @@
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-17 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-22 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
             <div class="wrap">
                 <h1>위험성평가 회의 목록 <button id="addMeetingBtn" class="meeting-add-btn hidden" type="button">+ 회의 추가하기</button></h1>
                 <p>목록을 클릭하면 자료등록으로 이동합니다.</p>
+                <div id="meetingPrecheck" class="meeting-precheck hidden">
+                    <strong>회의 진행 전 확인</strong>
+                    차주 점검항목을 정상적으로 지정하려면 다음 주간 위험성평가 회의를 미리 생성해주세요. 월간 위험성평가 회의는 차주 점검항목 연결 대상에서 제외됩니다.
+                </div>
                 <div id="meetingCards"></div>
             </div>
         </section>
@@ -1553,6 +1561,7 @@
         function applyRoleUI() {
             let admin = profile?.role === 'admin';
             $('addMeetingBtn').classList.toggle('hidden', !admin);
+            $('meetingPrecheck').classList.toggle('hidden', !admin);
             document.querySelectorAll('.admin-only').forEach(x => x.style.display = admin ? '' : 'none');
             $('partnerMaterial').classList.toggle('show', !admin);
             let meetingTab = document.querySelector('[data-page=meeting]');
@@ -1758,6 +1767,7 @@ ${target.meeting_date} · ${target.title}
             btn.closest('tr').insertAdjacentHTML('afterend', `<tr class="history-detail"><td colspan="5"><table class="tbl history-form"><thead><tr><th>구분</th><th>세부공종</th><th>작업활동</th><th>위험요인</th><th>회의결과</th></tr></thead><tbody>${rows}</tbody></table></td></tr>`)
         }
         const riskGrades = ['상(A)', '상(B)', '상(C)', '중(D)', '중(E)', '하(F)', '하(G)', '하(H)', '하(I)'];
+        const riskEditGrades = ['상', '중', '하'];
 
         function showImportState(text, error = false) {
             let el = $('excelImportState');
@@ -1982,7 +1992,8 @@ ${target.meeting_date} · ${target.title}
             let r = risks.find(x => x.id === id),
                 tr = $('risk-' + id);
             tr.querySelector('.rh').innerHTML = `<textarea class="risk-edit">${r.hazard}</textarea>`;
-            tr.querySelector('.rg').innerHTML = `<select class="risk-grade-select">${riskGrades.map(x=>`<option ${x===gradeLabel(r)?'selected':''}>${x}</option>`).join('')}</select>`;
+            const currentGrade = gradeLabel(r).startsWith('상') ? '상' : gradeLabel(r).startsWith('중') ? '중' : '하';
+            tr.querySelector('.rg').innerHTML = `<select class="risk-grade-select">${riskEditGrades.map(x=>`<option ${x===currentGrade?'selected':''}>${x}</option>`).join('')}</select>`;
             tr.querySelector('.rm').innerHTML = `<textarea class="risk-edit">${r.improvement_measure}</textarea>`;
             tr.querySelector('.risk-actions').innerHTML = `<button class="btn primary" onclick="saveRiskEdit('${id}')">저장</button><button class="btn" onclick="renderRisk()">취소</button>`
         }
@@ -2045,7 +2056,8 @@ ${target.meeting_date} · ${target.title}
         async function renderNext() {
             nextTargetMeeting = nextWeeklyMeeting(meeting);
             if (!nextTargetMeeting) {
-                nextChecks = []; $('nextMeetingNote').textContent = '다음 주간 위험성평가 회의가 등록되지 않았습니다. 월간회의는 점검 지정 대상에서 제외됩니다.';
+                nextChecks = [];
+                $('nextMeetingNote').innerHTML = `<div class="next-meeting-alert"><span>다음 주간 위험성평가 회의가 생성되지 않아 차주 점검항목을 지정할 수 없습니다. 월간회의는 연결 대상에서 제외됩니다.</span><button class="btn primary" type="button" onclick="openNextWeeklyMeetingAdd()">+ 다음 주간회의 생성</button></div>`;
             } else {
                 $('nextMeetingNote').textContent = `선택 항목 적용 회의: ${nextTargetMeeting.meeting_date} · ${nextTargetMeeting.title}`;
                 nextChecks = await api(`/rest/v1/field_checks?meeting_id=eq.${nextTargetMeeting.id}&company_id=eq.${part.company_id}&select=*`)
@@ -2055,6 +2067,14 @@ ${target.meeting_date} · ${target.title}
         function groupNextRows(list) {
             let groups=[]; for(let r of list){let key=(r.sub_category||'-')+'|'+(r.work_activity||'-'),g=groups[groups.length-1];if(!g||g.key!==key){g={key,sub:r.sub_category||'-',act:r.work_activity||'-',items:[]};groups.push(g)}g.items.push(r)}
             return groups.map(g=>g.items.map((r,i)=>`<tr class="${i===0?'group-start':''} ${i===g.items.length-1?'group-end':''}"><td><div class="choose"><button class="btn ${nextChecks.some(c=>c.selected_by==='main_contractor'&&c.risk_item_id===r.id)?'selected-owner':''}" onclick="choose('${r.id}','main_contractor')">당사</button><button class="btn ${nextChecks.some(c=>c.selected_by==='company'&&c.risk_item_id===r.id)?'selected-company':''}" onclick="choose('${r.id}','company')">업체</button></div></td>${i===0?`<td rowspan="${g.items.length}" class="merged-cell">${g.sub}</td><td rowspan="${g.items.length}" class="merged-cell">${g.act}</td>`:''}<td>${r.hazard}</td><td><span class="grade">${gradeLabel(r)}</span></td><td>${r.improvement_measure}</td></tr>`).join('')).join('')
+        }
+        function openNextWeeklyMeetingAdd() {
+            if (profile?.role !== 'admin') return toast('관리자만 회의를 추가할 수 있습니다.');
+            $('newMeetingType').value = 'weekly';
+            $('newMeetingDate').value = '';
+            $('newMeetingTitle').value = '';
+            $('meetingAddModal').classList.remove('hidden');
+            setTimeout(() => $('newMeetingDate').focus(), 0);
         }
         async function choose(rid, who) {
             if (!nextTargetMeeting) return toast('다음 주간회의를 먼저 등록해주세요. 월간회의는 자동으로 제외됩니다.');
