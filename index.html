@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-14 통합</title>
+    <title>위험성평가 회의관리 5-15 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -979,7 +979,7 @@
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-14 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-15 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1281,13 +1281,19 @@
             return d
         }
         async function signed(p) {
-            let d = await api(`/storage/v1/object/sign/${BUCKET}/${p}`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    expiresIn: 3600
-                })
-            });
-            return BASE + '/storage/v1' + d.signedURL
+            try {
+                let d = await api(`/storage/v1/object/sign/${BUCKET}/${p}`, {
+                    method: 'POST',
+                    body: JSON.stringify({expiresIn: 3600})
+                });
+                return BASE + '/storage/v1' + d.signedURL
+            } catch (e) {
+                if (/object not found|not_found|nosuchkey/i.test(e.message)) {
+                    console.warn('Storage 파일 누락:', p);
+                    return ''
+                }
+                throw e
+            }
         }
 
         function wd(d) {
@@ -1426,7 +1432,7 @@
                     media;
                 if (images[0]) {
                     let url = await signed(images[0].object_path);
-                    media = `<img src="${url}" style="width:100%;height:280px;object-fit:contain;background:#0f172a" onclick="openModal('${url}')">`
+                    media = url ? `<img src="${url}" style="width:100%;height:280px;object-fit:contain;background:#0f172a" onclick="openModal('${url}')">` : `<div class="partner-photo-drop" onclick="document.getElementById('partnerFile-${item.id}').click()">사진 파일이 없어 다시 등록이 필요합니다.</div>`
                 } else media = `<div class="partner-photo-drop" onclick="document.getElementById('partnerFile-${item.id}').click()">사진을 끌어 놓거나 클릭해 등록</div>`;
                 html += `<article class="partner-card"><div class="partner-title">${item.selected_by==='company'?'협력사 선택 위험요인':'당사 선택 위험요인'}</div><div class="partner-info"><div class="partner-line"><b class="risk">위험요인</b><div>${item.risk_items?.hazard||'-'}</div></div><div class="partner-line"><b class="measure">개선대책</b><div>${item.risk_items?.improvement_measure||'-'}</div></div></div>${media}<input id="partnerFile-${item.id}" type="file" accept="image/*" hidden onchange="uploadPartnerFile(this.files[0],'field_check','${item.id}')"></article>`
             }
@@ -1546,29 +1552,49 @@
             if (profile?.role !== 'admin') return toast('관리자만 회의를 삭제할 수 있습니다.');
             let target = meetings.find(m => m.id === id);
             if (!target) return;
-            if (!confirm(`회의를 삭제할까요?\n\n${target.meeting_date} · ${target.title}\n\n관련 자료, 위험성평가, 사진 연결정보도 함께 삭제되며 복구할 수 없습니다.`)) return;
+            let warning = `회의를 삭제할까요?
+
+${target.meeting_date} · ${target.title}
+상태: ${target.status==='completed'?'완료':'미완료'}
+
+관련 자료와 위험성평가가 모두 삭제되며 복구할 수 없습니다.`;
+            if (!confirm(warning)) return;
             let button = document.querySelector(`.meeting-delete-btn[onclick*="${id}"]`);
             if (button) { button.disabled = true; button.textContent = '삭제중'; }
             try {
                 let attachments = await api(`/rest/v1/attachments?meeting_id=eq.${id}&select=object_path`);
-                for (let item of attachments || []) {
-                    if (!item.object_path) continue;
-                    let response = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${item.object_path}`, {
-                        method: 'DELETE',
-                        headers: {apikey: KEY, Authorization: 'Bearer ' + session.access_token}
-                    });
-                    if (!response.ok && response.status !== 404) throw Error('첨부파일 삭제 실패: ' + await response.text())
-                }
                 await api('/rest/v1/rpc/delete_meeting_admin', {
                     method: 'POST',
                     body: JSON.stringify({p_meeting_id: id})
                 });
+                let missingCount = 0, storageErrorCount = 0;
+                for (let item of attachments || []) {
+                    if (!item.object_path) continue;
+                    try {
+                        let response = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${item.object_path}`, {
+                            method: 'DELETE',
+                            headers: {apikey: KEY, Authorization: 'Bearer ' + session.access_token}
+                        });
+                        if (!response.ok) {
+                            let raw = await response.text(), data = {};
+                            try { data = JSON.parse(raw) } catch {}
+                            let isMissing = response.status === 404 || data.statusCode === '404' || data.statusCode === 404 || /not.?found|nosuchkey/i.test(raw);
+                            if (isMissing) missingCount++;
+                            else { storageErrorCount++; console.warn('Storage 삭제 실패:', item.object_path, raw); }
+                        }
+                    } catch (storageError) {
+                        storageErrorCount++;
+                        console.warn('Storage 삭제 오류:', item.object_path, storageError)
+                    }
+                }
                 meetings = meetings.filter(m => m.id !== id);
                 if (meeting?.id === id) meeting = meetings[0] || null;
                 if (materialMeeting?.id === id) materialMeeting = null;
                 renderMeetingList();
                 renderMeetingPicker();
-                toast('회의를 삭제했습니다.')
+                if (storageErrorCount) toast(`회의는 삭제했습니다. Storage 파일 ${storageErrorCount}건은 확인이 필요합니다.`);
+                else if (missingCount) toast(`회의를 삭제했습니다. 이미 없던 파일 ${missingCount}건은 건너뛰었습니다.`);
+                else toast('회의를 삭제했습니다.')
             } catch (e) {
                 if (button) { button.disabled = false; button.textContent = '삭제'; }
                 toast('회의 삭제 실패: ' + e.message)
@@ -1960,6 +1986,7 @@
             let h = '';
             for (let a of files.filter(x => x.attachment_type === 'company_finding')) {
                 let u = await signed(a.object_path);
+                if (!u) continue;
                 h += `<div class="photo-card"><img src="${u}" onclick="openModal('${u}')"><div style="padding:10px">${a.review_comment||''}</div></div>`
             }
             $('findingPhotos').innerHTML = h || '<div class="photo-missing">사진 없음</div>'
@@ -2061,6 +2088,7 @@
             let h = '';
             for (let a of list) {
                 let u = await signed(a.object_path);
+                if (!u) continue;
                 h += `<div class="photo-card"><img src="${u}" onclick="openModal('${u}')"><textarea data-id="${a.id}" onchange="saveCaption(this)">${a.review_comment||''}</textarea></div>`
             }
             $(target).innerHTML = h
