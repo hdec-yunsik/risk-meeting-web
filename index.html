@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-15 통합</title>
+    <title>위험성평가 회의관리 5-16 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -966,20 +966,20 @@
             font-weight: 900;
             cursor: pointer
         }
-    .meeting-delete-btn{border:1px solid #ef4444;background:#fff;color:#b91c1c;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer}.meeting-delete-btn:disabled{opacity:.55;cursor:not-allowed}.meeting-row.admin-row{grid-template-columns:180px minmax(500px,1fr) 90px 90px}</style>
+    .meeting-delete-btn{border:1px solid #ef4444;background:#fff;color:#b91c1c;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer}.meeting-delete-btn:disabled{opacity:.55;cursor:not-allowed}.meeting-row.admin-row{grid-template-columns:180px minmax(500px,1fr) 90px 90px}.login-options{display:flex;gap:16px;align-items:center;margin:10px 0 14px;color:#475569;font-size:13px}.login-options label{display:flex;align-items:center;gap:6px;cursor:pointer}.login-options input{width:auto!important;margin:0!important}.login-security-note{font-size:11px;color:#94a3b8;line-height:1.4;margin-top:8px}</style>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 
 <body>
     <section id="loginPage" class="login">
         <div class="loginbox">
-            <h1>위험성평가 회의관리</h1><input id="email" type="email" placeholder="이메일"><input id="password" type="password" placeholder="비밀번호"><button id="loginBtn" class="btn primary">로그인</button>
+            <h1>위험성평가 회의관리</h1><input id="email" type="email" placeholder="이메일" autocomplete="username"><input id="password" type="password" placeholder="비밀번호" autocomplete="current-password"><div class="login-options"><label><input id="rememberEmail" type="checkbox"> 아이디 저장</label><label><input id="rememberPassword" type="checkbox"> 비밀번호 저장</label></div><button id="loginBtn" class="btn primary">로그인</button><div class="login-security-note">비밀번호 저장은 개인 기기에서만 사용해주세요.</div>
             <div id="error" class="err"></div>
         </div>
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-15 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-16 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1190,19 +1190,25 @@
 
         function updateNewMeetingTitle() {
             let date = $('newMeetingDate').value;
-            if (!date) return;
+            if (!date) { $('newMeetingTitle').value = ''; return }
             let d = new Date(date + 'T00:00:00'),
                 month = d.getMonth() + 1,
-                type = $('newMeetingType').value;
-            if (type === 'monthly') $('newMeetingTitle').value = `${month}월 월간 위험성평가`;
-            else $('newMeetingTitle').value = `${month}월 ${Math.ceil(d.getDate()/7)}주차 주간 위험성평가`
+                type = $('newMeetingType').value,
+                firstDay = new Date(d.getFullYear(), d.getMonth(), 1).getDay(),
+                mondayOffset = firstDay === 0 ? 6 : firstDay - 1,
+                week = Math.floor((d.getDate() + mondayOffset - 1) / 7) + 1;
+            $('newMeetingTitle').value = type === 'monthly'
+                ? `${month}월 월간 위험성평가`
+                : `${month}월 ${week}주차 주간 위험성평가`
         }
 
         function showMeetingAdd() {
             if (profile?.role !== 'admin') return toast('관리자만 회의를 추가할 수 있습니다.');
-            $('newMeetingDate').value = new Date().toISOString().slice(0, 10);
-            updateNewMeetingTitle();
-            $('meetingAddModal').classList.remove('hidden')
+            $('newMeetingType').value = 'weekly';
+            $('newMeetingDate').value = '';
+            $('newMeetingTitle').value = '';
+            $('meetingAddModal').classList.remove('hidden');
+            setTimeout(() => $('newMeetingDate').focus(), 0)
         }
 
         function hideMeetingAdd() {
@@ -1299,6 +1305,18 @@
         function wd(d) {
             return ['일', '월', '화', '수', '목', '금', '토'][new Date(d + 'T00:00:00').getDay()]
         }
+        function loadSavedLogin() {
+            let email = localStorage.getItem('riskMeetingSavedEmail') || '',
+                password = localStorage.getItem('riskMeetingSavedPassword') || '';
+            if (email) { $('email').value = email; $('rememberEmail').checked = true }
+            if (password) { $('password').value = password; $('rememberPassword').checked = true }
+        }
+        function saveLoginPreference() {
+            if ($('rememberEmail').checked) localStorage.setItem('riskMeetingSavedEmail', $('email').value.trim());
+            else localStorage.removeItem('riskMeetingSavedEmail');
+            if ($('rememberPassword').checked) localStorage.setItem('riskMeetingSavedPassword', $('password').value);
+            else localStorage.removeItem('riskMeetingSavedPassword')
+        }
         async function login() {
             try {
                 $('error').textContent = '';
@@ -1310,6 +1328,7 @@
                     })
                 }, false);
                 profile = (await api(`/rest/v1/profiles?id=eq.${session.user.id}&select=*`))[0];
+                saveLoginPreference();
                 $('loginPage').classList.add('hidden');
                 $('app').classList.remove('hidden');
                 $('userName').textContent = profile?.full_name || session.user.email;
@@ -2126,6 +2145,16 @@ ${target.meeting_date} · ${target.title}
             document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === b.dataset.view))
         });
         $('loginBtn').onclick = login;
+        $('loginPage').addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); login() }
+        });
+        $('rememberEmail').addEventListener('change', e => {
+            if (!e.target.checked) localStorage.removeItem('riskMeetingSavedEmail')
+        });
+        $('rememberPassword').addEventListener('change', e => {
+            if (!e.target.checked) localStorage.removeItem('riskMeetingSavedPassword')
+        });
+        loadSavedLogin();
         $('addRiskBtn').onclick = showRiskAdd;
         $('addMeetingBtn').addEventListener('click', showMeetingAdd);
         $('cancelMeetingBtn').addEventListener('click', hideMeetingAdd);
