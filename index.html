@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-19 통합</title>
+    <title>위험성평가 회의관리 5-20 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -1729,7 +1729,7 @@ ${target.meeting_date} · ${target.title}
                     showAct = showSub || act !== seenAct;
                 seenSub = sub;
                 seenAct = act;
-                return mode === 'risk' ? `<tr><td class="nowrap">${showSub?sub:''}</td><td class="nowrap">${showAct?act:''}</td><td>${r.hazard}</td><td><span class="grade">${r.source_rating||'상'}</span></td><td>${r.improvement_measure}</td><td>${r.previous_check_count||0}회 (${cnt(r.id,'completed')}/${cnt(r.id,'needs_action')}/${cnt(r.id,'not_performed')})</td></tr>` : `<tr><td><div class="choose"><button class="btn ${checks.some(c=>c.selected_by==='main_contractor'&&c.risk_item_id===r.id)?'selected-owner':''}" onclick="choose('${r.id}','main_contractor')">당사</button><button class="btn ${checks.some(c=>c.selected_by==='company'&&c.risk_item_id===r.id)?'selected-company':''}" onclick="choose('${r.id}','company')">업체</button></div></td><td class="nowrap">${showSub?sub:''}</td><td class="nowrap">${showAct?act:''}</td><td>${r.hazard}</td><td><span class="grade">${r.source_rating||'상'}</span></td><td>${r.improvement_measure}</td><td>${r.previous_check_count||0}회</td></tr>`
+                return mode === 'risk' ? `<tr><td class="nowrap">${showSub?sub:''}</td><td class="nowrap">${showAct?act:''}</td><td>${r.hazard}</td><td><span class="grade">${gradeLabel(r)}</span></td><td>${r.improvement_measure}</td><td>${r.previous_check_count||0}회 (${cnt(r.id,'completed')}/${cnt(r.id,'needs_action')}/${cnt(r.id,'not_performed')})</td></tr>` : `<tr><td><div class="choose"><button class="btn ${checks.some(c=>c.selected_by==='main_contractor'&&c.risk_item_id===r.id)?'selected-owner':''}" onclick="choose('${r.id}','main_contractor')">당사</button><button class="btn ${checks.some(c=>c.selected_by==='company'&&c.risk_item_id===r.id)?'selected-company':''}" onclick="choose('${r.id}','company')">업체</button></div></td><td class="nowrap">${showSub?sub:''}</td><td class="nowrap">${showAct?act:''}</td><td>${r.hazard}</td><td><span class="grade">${gradeLabel(r)}</span></td><td>${r.improvement_measure}</td><td>${r.previous_check_count||0}회</td></tr>`
             }).join('')
         }
 
@@ -1825,9 +1825,17 @@ ${target.meeting_date} · ${target.title}
                 let sub = cleanExcelText(r[col.sub]),
                     activity = cleanExcelText(r[col.act]),
                     hazard = cleanExcelText(r[col.haz]),
-                    grade = cleanExcelText(r[col.grade]),
+                    // 당사 PTW 양식의 평가등급은 U:W 병합영역에 있으며 실제 값은 U열에 저장됩니다.
+                    // 업체별 병합 상태 차이를 고려해 U, V, W 순서로 한글 등급을 탐색합니다.
+                    gradeCandidates = [r[20], r[21], r[22]].map(cleanExcelText),
+                    grade = gradeCandidates.find(v => /^(상|중|하)\s*\([A-F]\)$/.test(v)) || '',
                     measure = cleanExcelText(r[col.measure]);
                 if (!sub || !activity || !hazard || !measure) continue;
+                if (!grade) {
+                    console.warn(`평가등급 누락: Excel ${i + 1}행 U:W`, gradeCandidates);
+                    continue;
+                }
+                grade = grade.replace(/\s+/g, '');
                 items.push({
                     meeting_id: materialMeeting.id,
                     company_id: profile.company_id,
@@ -1836,7 +1844,7 @@ ${target.meeting_date} · ${target.title}
                     work_activity: activity,
                     hazard,
                     current_grade: grade.startsWith('상') ? 'high' : grade.startsWith('중') ? 'medium' : 'low',
-                    source_rating: grade || '중(E)',
+                    source_rating: grade,
                     improvement_measure: measure,
                     source_type: 'uploaded_file',
                     sort_order: items.length + 1,
