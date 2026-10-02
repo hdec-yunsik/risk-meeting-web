@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-17 통합</title>
+    <title>위험성평가 회의관리 5-18 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -975,7 +975,6 @@
         .tbl.risk-merged tr.group-start td{border-top:3px solid #334155}
         .next-meeting-note{padding:10px 14px;background:#eff6ff;color:#1d4ed8;font-weight:900;border-bottom:1px solid var(--line)}
         </style>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 
 <body>
@@ -1899,9 +1898,14 @@ ${target.meeting_date} · ${target.title}
         }
 
         function gradeLabel(r) {
-            let raw = String(r.source_rating || '').trim();
-            if (raw && !/^\d+(?:\.\d+)?$/.test(raw)) return raw;
-            return r.current_grade === 'high' ? '상(C)' : r.current_grade === 'medium' ? '중(E)' : r.current_grade === 'low' ? '하(I)' : '-'
+            const raw = String(r.source_rating ?? '').replace(/\s+/g, '').trim();
+            const matched = raw.match(/(상|중|하)\(([A-I])\)/);
+            if (matched) return `${matched[1]}(${matched[2]})`;
+            if (/^(상|중|하)$/.test(raw)) return raw;
+            // 숫자 점수는 등급으로 임의 변환하지 않습니다.
+            // Excel의 '평가등급' 열에서 읽은 한글 등급만 표시합니다.
+            if (/^\d+(?:\.\d+)?$/.test(raw)) return '등급 확인 필요';
+            return raw || '등급 확인 필요';
         }
         function nextWeeklyMeeting(current) {
             return meetings.filter(m => m.meeting_type === 'weekly' && m.meeting_date > current.meeting_date)
