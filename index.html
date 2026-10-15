@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-27 통합</title>
+    <title>위험성평가 회의관리 5-28 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -966,7 +966,7 @@
             font-weight: 900;
             cursor: pointer
         }
-    .meeting-delete-btn{border:1px solid #ef4444;background:#fff;color:#b91c1c;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer}.meeting-delete-btn:disabled{opacity:.55;cursor:not-allowed}.meeting-row.admin-row{grid-template-columns:180px minmax(500px,1fr) 90px 90px}.login-options{display:flex;gap:16px;align-items:center;margin:10px 0 14px;color:#475569;font-size:13px}.login-options label{display:flex;align-items:center;gap:6px;cursor:pointer}.login-options input{width:auto!important;margin:0!important}.login-security-note{font-size:11px;color:#94a3b8;line-height:1.4;margin-top:8px}
+    .meeting-delete-btn{border:1px solid #ef4444;background:#fff;color:#b91c1c;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer}.meeting-delete-btn:disabled{opacity:.55;cursor:not-allowed}.meeting-complete-btn{border:1px solid #059669;background:#fff;color:#047857;border-radius:8px;padding:8px 11px;font-weight:900;cursor:pointer}.meeting-complete-btn:disabled{opacity:.55;cursor:not-allowed}.meeting-complete-btn.done{background:#dcfce7;border-color:#86efac;color:#166534}.meeting-row.admin-row{grid-template-columns:180px minmax(500px,1fr) 90px 90px 90px}.login-options{display:flex;gap:16px;align-items:center;margin:10px 0 14px;color:#475569;font-size:13px}.login-options label{display:flex;align-items:center;gap:6px;cursor:pointer}.login-options input{width:auto!important;margin:0!important}.login-security-note{font-size:11px;color:#94a3b8;line-height:1.4;margin-top:8px}
         .risk-grade-select{min-width:105px;width:105px;padding:8px;border:1px solid var(--line);border-radius:7px;white-space:nowrap}
         .risk-source-select{width:100%;min-width:150px;padding:8px;border:1px solid var(--line);border-radius:7px}
         .risk-direct-input{width:100%;margin-top:7px;padding:8px;border:1px solid var(--line);border-radius:7px}
@@ -1019,7 +1019,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-27 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-28 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1667,7 +1667,42 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             let g = {};
             meetings.forEach(m => (g[m.meeting_date.slice(0, 7)] ??= []).push(m));
             let cur = new Date().toISOString().slice(0, 7), admin = profile?.role === 'admin';
-            $('meetingCards').innerHTML = Object.keys(g).sort().reverse().map(ym => `<div class="month ${ym===cur?'open':''}"><button class="month-head" onclick="this.parentElement.classList.toggle('open')"><span>${ym.replace('-','년 ')}월</span><span>${g[ym].length}건 ▾</span></button><div class="month-body">${g[ym].map(m=>`<div class="meeting-row ${admin?'admin-row':''} ${m.status==='completed'?'done':''}" onclick="openMeeting('${m.id}')"><span class="meeting-date">${m.meeting_date}(${wd(m.meeting_date)})</span><span><span class="pill ${m.meeting_type==='weekly'?'type-weekly':'type-monthly'}">${m.meeting_type==='weekly'?'주간':'월간'}</span> <b>${m.title}</b></span><b>${m.status==='completed'?'완료':'예정'}</b>${admin?`<button class="meeting-delete-btn" type="button" onclick="event.stopPropagation();deleteMeetingAdmin('${m.id}')">삭제</button>`:''}</div>`).join('')}</div></div>`).join('')
+            $('meetingCards').innerHTML = Object.keys(g).sort().reverse().map(ym => `<div class="month ${ym===cur?'open':''}"><button class="month-head" onclick="this.parentElement.classList.toggle('open')"><span>${ym.replace('-','년 ')}월</span><span>${g[ym].length}건 ▾</span></button><div class="month-body">${g[ym].map(m=>`<div class="meeting-row ${admin?'admin-row':''} ${m.status==='completed'?'done':''}" onclick="openMeeting('${m.id}')"><span class="meeting-date">${m.meeting_date}(${wd(m.meeting_date)})</span><span><span class="pill ${m.meeting_type==='weekly'?'type-weekly':'type-monthly'}">${m.meeting_type==='weekly'?'주간':'월간'}</span> <b>${m.title}</b></span><b>${m.status==='completed'?'완료':'예정'}</b>${admin?`<button class="meeting-complete-btn ${m.status==='completed'?'done':''}" type="button" onclick="event.stopPropagation();completeMeetingAdmin('${m.id}')" ${m.status==='completed'?'disabled':''}>${m.status==='completed'?'완료됨':'회의 완료'}</button><button class="meeting-delete-btn" type="button" onclick="event.stopPropagation();deleteMeetingAdmin('${m.id}')">삭제</button>`:''}</div>`).join('')}</div></div>`).join('')
+        }
+        async function completeMeetingAdmin(id) {
+            if (profile?.role !== 'admin') return toast('관리자만 회의를 완료할 수 있습니다.');
+            const target = meetings.find(m => m.id === id);
+            if (!target) return;
+            // 기존 completed 상태는 그대로 존중합니다. 이미 완료된 회의는 다시 변경하지 않습니다.
+            if (target.status === 'completed') return toast('이미 완료된 회의입니다.');
+            if (!confirm(`회의를 완료 처리할까요?
+${target.meeting_date} · ${target.title}
+
+완료 처리 후에도 기존 업체별 완료 상태는 변경하지 않습니다.`)) return;
+            const button = document.querySelector(`.meeting-complete-btn[onclick*="${id}"]`);
+            if (button) { button.disabled = true; button.textContent = '처리중'; }
+            try {
+                await api(`/rest/v1/meetings?id=eq.${id}&status=neq.completed`, {
+                    method: 'PATCH',
+                    headers: { Prefer: 'return=minimal' },
+                    body: JSON.stringify({ status: 'completed' })
+                });
+                // 서버의 실제 상태를 다시 읽어 기존/동시 처리 로직과 충돌하지 않게 동기화합니다.
+                const rows = await api(`/rest/v1/meetings?id=eq.${id}&select=*`);
+                const fresh = rows?.[0];
+                if (!fresh) throw Error('회의 상태를 확인할 수 없습니다.');
+                const idx = meetings.findIndex(m => m.id === id);
+                if (idx >= 0) meetings[idx] = fresh;
+                if (meeting?.id === id) meeting = fresh;
+                if (materialMeeting?.id === id) materialMeeting = fresh;
+                renderMeetingList();
+                renderMaterialMeetings();
+                renderMeetingPicker();
+                toast(fresh.status === 'completed' ? '회의를 완료 처리했습니다.' : '회의 완료 상태가 반영되지 않았습니다.');
+            } catch (e) {
+                if (button) { button.disabled = false; button.textContent = '회의 완료'; }
+                toast('회의 완료 처리 실패: ' + e.message);
+            }
         }
         async function deleteMeetingAdmin(id) {
             if (profile?.role !== 'admin') return toast('관리자만 회의를 삭제할 수 있습니다.');
