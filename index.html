@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-28 통합</title>
+    <title>위험성평가 회의관리 5-29 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -1019,7 +1019,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-28 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-29 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1784,7 +1784,16 @@ ${target.meeting_date} · ${target.title}
 
         function renderParts() {
             const visibleParts = profile?.role === 'admin' ? parts : parts.filter(p => p.company_id === profile?.company_id);
-            $('companies').innerHTML = visibleParts.map((p, i) => `<button class="company ${part?.company_id===p.company_id?'active':''} ${p.status==='completed'?'done':''}" onclick="selectPart('${p.company_id}')">${i+1}. ${p.companies.company_name}</button>`).join('')
+            $('companies').innerHTML = visibleParts.map((p, i) => `<button class="company ${part?.company_id===p.company_id?'active':''} ${p.status==='completed'?'done':''}" onclick="selectCompanyFromMenu('${p.company_id}')">${i+1}. ${p.companies.company_name}</button>`).join('')
+        }
+        function showMeetingStep(viewName) {
+            document.querySelectorAll('.step').forEach(x => x.classList.toggle('active', x.dataset.view === viewName));
+            document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === viewName));
+        }
+        async function selectCompanyFromMenu(cid) {
+            // 왼쪽 업체 목록에서 업체를 선택하면 해당 업체의 STEP 01부터 시작합니다.
+            showMeetingStep('field');
+            await selectPart(cid);
         }
         async function selectPart(cid) {
             if (profile?.role !== 'admin' && cid !== profile?.company_id) return toast('본인 업체 회의 결과만 확인할 수 있습니다.');
@@ -2127,10 +2136,18 @@ ${target.meeting_date} · ${target.title}
             tr.querySelector('.risk-actions').innerHTML = `<button class="btn primary" onclick="saveRiskEdit('${id}')">저장</button><button class="btn" onclick="renderRisk()">취소</button>`
         }
         async function saveRiskEdit(id) {
+            const original = risks.find(x => x.id === id);
             let tr = $('risk-' + id),
-                hazard = tr.querySelector('.rh textarea').value,
+                hazard = tr.querySelector('.rh textarea').value.trim(),
                 grade = tr.querySelector('.rg select').value,
-                measure = tr.querySelector('.rm textarea').value;
+                measure = tr.querySelector('.rm textarea').value.trim();
+            if (!original) return toast('기존 위험요인 정보를 확인할 수 없습니다.');
+            const changes = [];
+            if ((original.hazard || '') !== hazard) changes.push(`기존 위험요인: ${original.hazard || '-'}\n수정 위험요인: ${hazard || '-'}`);
+            if (gradeLabel(original) !== grade) changes.push(`기존 등급: ${gradeLabel(original) || '-'}\n수정 등급: ${grade || '-'}`);
+            if ((original.improvement_measure || '') !== measure) changes.push(`기존 개선대책: ${original.improvement_measure || '-'}\n수정 개선대책: ${measure || '-'}`);
+            if (!changes.length) return toast('변경된 내용이 없습니다.');
+            const changeSummary = changes.join('\n');
             await api(`/rest/v1/risk_items?id=eq.${id}`, {
                 method: 'PATCH',
                 headers: {
@@ -2142,7 +2159,7 @@ ${target.meeting_date} · ${target.title}
                     current_grade: grade.startsWith('상') ? 'high' : grade.startsWith('중') ? 'medium' : 'low',
                     improvement_measure: measure,
                     change_type: 'modified',
-                    change_summary: '회의 중 위험요인·등급·개선대책 수정',
+                    change_summary: changeSummary,
                     change_reason: '회의 중 수정',
                     updated_by: profile.id,
                     updated_at: new Date().toISOString()
@@ -2155,6 +2172,8 @@ ${target.meeting_date} · ${target.title}
             if (profile?.role !== 'admin') return toast('업체 계정은 회의 결과를 조회만 할 수 있습니다.');
             let reason = prompt('삭제 사유를 입력해주세요.');
             if (reason === null) return;
+            reason = reason.trim();
+            if (!reason) return toast('삭제 사유를 입력해주세요.');
             await api(`/rest/v1/risk_items?id=eq.${id}`, {
                 method: 'PATCH',
                 headers: {
@@ -2163,7 +2182,7 @@ ${target.meeting_date} · ${target.title}
                 body: JSON.stringify({
                     is_deleted: true,
                     change_type: 'deleted',
-                    change_summary: '회의 중 삭제: ' + reason,
+                    change_summary: reason,
                     change_reason: reason,
                     updated_by: profile.id,
                     updated_at: new Date().toISOString()
@@ -2360,10 +2379,7 @@ ${target.meeting_date} · ${target.title}
             showPage('summary')
         }
         document.querySelectorAll('.nav button').forEach(b => b.onclick = () => showPage(b.dataset.page));
-        document.querySelectorAll('.step').forEach(b => b.onclick = () => {
-            document.querySelectorAll('.step').forEach(x => x.classList.toggle('active', x === b));
-            document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === b.dataset.view))
-        });
+        document.querySelectorAll('.step').forEach(b => b.onclick = () => showMeetingStep(b.dataset.view));
         $('loginBtn').onclick = login;
         $('loginPage').addEventListener('keydown', e => {
             if (e.key === 'Enter') { e.preventDefault(); login() }
