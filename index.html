@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-30 통합</title>
+    <title>위험성평가 회의관리 5-31 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -1019,7 +1019,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-30 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-31 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -2366,9 +2366,68 @@ ${target.meeting_date} · ${target.title}
             }
             return out
         }
+        function safeDownloadName(value) {
+            return String(value || '').replace(/[\\/:*?"<>|]/g, '_').trim() || '업체';
+        }
+        function wrapCanvasText(ctx, text, maxWidth) {
+            const source = String(text || '-').split(/\n/), lines = [];
+            for (const paragraph of source) {
+                let line = '';
+                for (const ch of paragraph) {
+                    const test = line + ch;
+                    if (line && ctx.measureText(test).width > maxWidth) { lines.push(line); line = ch; }
+                    else line = test;
+                }
+                lines.push(line || ' ');
+            }
+            return lines;
+        }
+        function drawRoundedRect(ctx, x, y, w, h, r, fill, stroke='#d7e0ea') {
+            ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();
+        }
+        function loadExportImage(url) {
+            return new Promise(resolve => {
+                if (!url) return resolve(null);
+                const img = new Image();img.crossOrigin='anonymous';
+                img.onload=()=>resolve(img);img.onerror=()=>resolve(null);img.src=url;
+            });
+        }
+        function drawCoverImage(ctx, img, x, y, w, h) {
+            if (!img) {ctx.fillStyle='#e2e8f0';ctx.fillRect(x,y,w,h);ctx.fillStyle='#64748b';ctx.font='900 24px Arial, Noto Sans KR, sans-serif';ctx.textAlign='center';ctx.fillText('사진 없음',x+w/2,y+h/2);ctx.textAlign='left';return;}
+            const scale=Math.min(w/img.width,h/img.height), dw=img.width*scale, dh=img.height*scale;
+            ctx.fillStyle='#0f172a';ctx.fillRect(x,y,w,h);ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+        }
+        function triggerBlobDownload(blob, filename) {
+            const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+        }
+        async function buildFieldResultJpg(p) {
+            const company=p.companies?.company_name||'업체';
+            const companyChecks=await api(`/rest/v1/field_checks?meeting_id=eq.${meeting.id}&company_id=eq.${p.company_id}&select=*,risk_items(*)`);
+            const attachments=await api(`/rest/v1/attachments?meeting_id=eq.${meeting.id}&company_id=eq.${p.company_id}&attachment_type=eq.field_check&select=*&order=created_at.desc`);
+            const latest=new Map();for(const a of attachments){if(a.field_check_id&&!latest.has(a.field_check_id))latest.set(a.field_check_id,a)}
+            const items=[];
+            for(const c of companyChecks){const a=latest.get(c.id),url=a?.object_path?await signed(a.object_path):'';items.push({check:c,img:await loadExportImage(url),hasPhoto:!!url})}
+            if(!items.length)return false;
+            const W=1420,margin=28,gap=16,cols=2,cardW=(W-margin*2-gap)/cols,headerH=148,textH=104,imageH=390,resultH=62,cardH=textH+imageH+resultH;
+            const rows=Math.ceil(items.length/cols),H=headerH+rows*cardH+(rows-1)*gap+margin;
+            const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;const ctx=canvas.getContext('2d');
+            ctx.fillStyle='#eef3f8';ctx.fillRect(0,0,W,H);ctx.fillStyle='#047857';ctx.font='900 16px Arial, Noto Sans KR, sans-serif';ctx.fillText(`${meeting.meeting_date}(${wd(meeting.meeting_date)}) · ${meeting.title}`,margin,30);
+            ctx.fillStyle='#07192c';ctx.font='900 30px Arial, Noto Sans KR, sans-serif';ctx.fillText(`${company} (${meeting.meeting_type==='weekly'?'주간':'월간'}) 위험성평가 회의`,margin,70);
+            drawRoundedRect(ctx,margin,88,W-margin*2,52,14,'#fff');ctx.fillStyle='#07192c';ctx.font='900 20px Arial, Noto Sans KR, sans-serif';ctx.fillText('전주 선정 위험요인 현장 이행결과',margin+18,121);
+            items.forEach((item,i)=>{const col=i%2,row=Math.floor(i/2),x=margin+col*(cardW+gap),y=headerH+row*(cardH+gap),c=item.check,r=c.risk_items||{};
+                drawRoundedRect(ctx,x,y,cardW,cardH,14,'#fff');
+                ctx.fillStyle='#fee2e2';ctx.fillRect(x+1,y+1,cardW-2,52);ctx.fillStyle='#991b1b';ctx.font='900 16px Arial, Noto Sans KR, sans-serif';let lines=wrapCanvasText(ctx,`위험요인 · ${r.hazard||'-'}`,cardW-24).slice(0,2);lines.forEach((t,j)=>ctx.fillText(t,x+12,y+22+j*20));
+                ctx.fillStyle='#dbeafe';ctx.fillRect(x+1,y+53,cardW-2,51);ctx.fillStyle='#1e40af';ctx.font='900 16px Arial, Noto Sans KR, sans-serif';lines=wrapCanvasText(ctx,`개선대책 · ${r.improvement_measure||'-'}`,cardW-24).slice(0,2);lines.forEach((t,j)=>ctx.fillText(t,x+12,y+75+j*20));
+                drawCoverImage(ctx,item.img,x+1,y+textH,cardW-2,imageH);
+                const actual=item.hasPhoto?(c.result||'not_performed'):'not_performed',labels=[['completed','적합'],['needs_action','부적합'],['not_performed','미실시']],bw=(cardW-24-12)/3;
+                labels.forEach(([key,label],j)=>{const bx=x+12+j*(bw+6),by=y+textH+imageH+10,active=actual===key,fill=active?(key==='completed'?'#dcfce7':key==='needs_action'?'#fee2e2':'#e2e8f0'):'#fff',color=active?(key==='completed'?'#166534':key==='needs_action'?'#991b1b':'#334155'):'#111827';drawRoundedRect(ctx,bx,by,bw,42,8,fill);ctx.fillStyle=color;ctx.font='900 16px Arial, Noto Sans KR, sans-serif';ctx.textAlign='center';ctx.fillText(label,bx+bw/2,by+27);ctx.textAlign='left';});
+            });
+            const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.92));if(!blob)throw Error(`${company} JPG 생성 실패`);triggerBlobDownload(blob,`전주 선정 위험요인 현장 이행결과_${safeDownloadName(company)}.jpg`);return true;
+        }
+        async function downloadAllFieldResultJpgs(){let count=0;for(const p of parts){if(await buildFieldResultJpg(p))count++;await new Promise(r=>setTimeout(r,250))}return count}
         async function downloadMeetingMinutes(){
             if(profile?.role!=='admin')return toast('관리자만 다운로드할 수 있습니다.');if(!meeting)return toast('회의를 먼저 선택해주세요.');
-            const btn=$('downloadMinutesBtn');btn.disabled=true;btn.textContent='Excel 생성중...';
+            const btn=$('downloadMinutesBtn');btn.disabled=true;btn.textContent='Excel 및 JPG 생성중...';
             try{
                 const bytes=Uint8Array.from(atob(SIMPLE_MINUTES_TEMPLATE),c=>c.charCodeAt(0)),zip=await JSZip.loadAsync(bytes),path='xl/worksheets/sheet1.xml';
                 const xml=await zip.file(path).async('string'),doc=new DOMParser().parseFromString(xml,'application/xml');
@@ -2377,7 +2436,7 @@ ${target.meeting_date} · ${target.title}
                 rows.slice(0,100).forEach((x,i)=>['A','B','C','D','E'].forEach((col,j)=>setXlsxInlineCell(doc,`${col}${11+i}`,x[j])));
                 zip.file(path,new XMLSerializer().serializeToString(doc));
                 const blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),a=document.createElement('a');
-                a.href=URL.createObjectURL(blob);a.download=`${meeting.meeting_date}_${meeting.title.replace(/[\\/:*?"<>|]/g,'_')}_회의결과.xlsx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast(`회의 결과 ${rows.length}건을 다운로드했습니다.`)
+                a.href=URL.createObjectURL(blob);a.download=`${meeting.meeting_date}_${meeting.title.replace(/[\\/:*?"<>|]/g,'_')}_회의결과.xlsx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);const jpgCount=await downloadAllFieldResultJpgs();toast(`회의 결과 Excel과 업체별 JPG ${jpgCount}개를 다운로드했습니다.`)
             }catch(e){console.error(e);toast('회의 결과 다운로드 실패: '+e.message)}finally{btn.disabled=false;btn.textContent='회의 결과 Excel 다운로드'}
         }
         async function openSummary() {
