@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-29 통합</title>
+    <title>위험성평가 회의관리 5-30 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -1019,7 +1019,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-29 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-30 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1887,7 +1887,7 @@ ${target.meeting_date} · ${target.title}
                 ms = meetings.filter(m => m.meeting_date.startsWith(ym)),
                 h = '';
             for (let m of ms) {
-                let rs = await api(`/rest/v1/risk_items?meeting_id=eq.${m.id}&company_id=eq.${part.company_id}&is_deleted=eq.false&change_type=in.(modified,added,deleted)&select=*`),
+                let rs = await api(`/rest/v1/risk_items?meeting_id=eq.${m.id}&company_id=eq.${part.company_id}&change_type=in.(modified,added,deleted)&select=*`),
                     mod = rs.filter(r => r.change_type === 'modified').length,
                     add = rs.filter(r => r.change_type === 'added').length,
                     del = rs.filter(r => r.change_type === 'deleted').length;
@@ -2174,22 +2174,30 @@ ${target.meeting_date} · ${target.title}
             if (reason === null) return;
             reason = reason.trim();
             if (!reason) return toast('삭제 사유를 입력해주세요.');
-            await api(`/rest/v1/risk_items?id=eq.${id}`, {
-                method: 'PATCH',
-                headers: {
-                    Prefer: 'return=minimal'
-                },
-                body: JSON.stringify({
-                    is_deleted: true,
-                    change_type: 'deleted',
-                    change_summary: reason,
-                    change_reason: reason,
-                    updated_by: profile.id,
-                    updated_at: new Date().toISOString()
-                })
-            });
-            await selectPart(part.company_id);
-            toast('위험요인을 삭제했습니다.')
+            try {
+                const updated = await api(`/rest/v1/risk_items?id=eq.${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        Prefer: 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        is_deleted: true,
+                        change_type: 'deleted',
+                        change_summary: reason,
+                        change_reason: reason,
+                        updated_by: profile.id,
+                        updated_at: new Date().toISOString()
+                    })
+                });
+                if (!Array.isArray(updated) || !updated.length || updated[0].is_deleted !== true) {
+                    throw Error('삭제 상태가 데이터베이스에 반영되지 않았습니다.');
+                }
+                await selectPart(part.company_id);
+                toast('위험요인을 삭제하고 회의결과에 삭제 사유를 기록했습니다.');
+            } catch (e) {
+                console.error('위험요인 삭제 실패:', e);
+                toast('위험요인 삭제 실패: ' + e.message);
+            }
         }
         async function renderFinding() {
             $('findingText').value = finding?.discussion_text || part.company_message || '';
