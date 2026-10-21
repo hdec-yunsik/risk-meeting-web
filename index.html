@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-33 통합</title>
+    <title>위험성평가 회의관리 5-35 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -359,6 +359,15 @@
             flex-direction: column;
         }
         .meeting-memo-drawer.open { transform: translateX(0); }
+        /* 메모가 열리면 회의 본문 폭을 자동으로 줄여 화면 밖으로 가려지지 않게 합니다. */
+        #meetingPage .meeting-layout { transition: padding-right .22s ease, max-width .22s ease; }
+        body.meeting-memo-open #meetingPage .meeting-layout {
+            max-width: none;
+            width: 100%;
+            padding-right: 420px;
+        }
+        body.meeting-memo-open #meetingPage main { min-width: 0; }
+        body.meeting-memo-open #meetingPage .table-wrap { max-width: 100%; }
         .meeting-memo-tab {
             position: absolute;
             right: 100%;
@@ -399,6 +408,9 @@
         .common-photo-gallery { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
         .common-photo-gallery .photo-card img { height:430px; }
         .common-photo-caption { padding:11px;white-space:pre-wrap;background:#fff; }
+        @media(max-width:1200px){
+            body.meeting-memo-open #meetingPage .meeting-layout { padding-right:15px; }
+        }
         @media(max-width:700px){
             .meeting-memo-drawer{top:68px;height:calc(100vh - 68px);width:calc(100vw - 48px);border-radius:0}
             .meeting-memo-head{border-radius:0}
@@ -1084,7 +1096,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-33 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-35 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1335,7 +1347,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             checks = [],
             finding, files = [],
             materialMeeting, materialParts = [],
-            materialPart, timer, commentTimer, nextChecks = [], nextTargetMeeting = null;
+            materialPart, timer, commentTimer, materialTextTimer, nextChecks = [], nextTargetMeeting = null;
         const SIMPLE_MINUTES_TEMPLATE='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';
 
         function updateNewMeetingTitle() {
@@ -1510,6 +1522,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                     })
                 });
                 materialMeeting.common_notice = $('commonNotice').value;
+                const meetingIndex = meetings.findIndex(m => m.id === materialMeeting.id);
+                if (meetingIndex >= 0) meetings[meetingIndex].common_notice = $('commonNotice').value;
+                if (meeting?.id === materialMeeting.id) meeting.common_notice = $('commonNotice').value;
+                if ($('meetingMemoText') && meeting?.id === materialMeeting.id) $('meetingMemoText').value = $('commonNotice').value;
                 setMaterialStatus('saved', '저장 완료 !')
             } catch (e) {
                 setMaterialStatus('error', '저장 실패');
@@ -1520,34 +1536,24 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             if (!materialMeeting || !materialPart) return;
             setMaterialStatus('saving', '저장중...');
             try {
-                let rows = await api(`/rest/v1/company_findings?meeting_id=eq.${materialMeeting.id}&company_id=eq.${materialPart.company_id}&select=*`),
-                    text = $('companyNotice').value;
-                if (rows[0]) await api(`/rest/v1/company_findings?id=eq.${rows[0].id}`, {
-                    method: 'PATCH',
-                    headers: {
-                        Prefer: 'return=minimal'
-                    },
-                    body: JSON.stringify({
-                        discussion_text: text
-                    })
-                });
-                else await api('/rest/v1/company_findings', {
+                const text = $('companyNotice').value;
+                const body = {
+                    meeting_id: materialMeeting.id,
+                    company_id: materialPart.company_id,
+                    finding_text: '업체 전달사항',
+                    discussion_text: text,
+                    created_by: profile.id
+                };
+                await api('/rest/v1/company_findings?on_conflict=meeting_id,company_id', {
                     method: 'POST',
-                    headers: {
-                        Prefer: 'return=minimal'
-                    },
-                    body: JSON.stringify({
-                        meeting_id: materialMeeting.id,
-                        company_id: materialPart.company_id,
-                        finding_text: '업체 전달사항',
-                        discussion_text: text,
-                        created_by: profile.id
-                    })
+                    headers: {Prefer: 'resolution=merge-duplicates,return=representation'},
+                    body: JSON.stringify(body)
                 });
-                setMaterialStatus('saved', '저장 완료 !')
+                materialPart.company_message = text;
+                setMaterialStatus('saved', '저장 완료 !');
             } catch (e) {
                 setMaterialStatus('error', '저장 실패');
-                toast('업체 전달사항 저장 실패: ' + e.message)
+                toast('업체별 당사 의견 저장 실패: ' + e.message)
             }
         }
         async function uploadAdminFile(file, common = false) {
@@ -2526,6 +2532,7 @@ ${target.meeting_date} · ${target.title}
             $('meetingMemoDrawer').classList.toggle('open', open);
             $('meetingMemoDrawer').setAttribute('aria-hidden', String(!open));
             $('meetingMemoTab').textContent = open ? '메모 닫기' : '회의 메모';
+            document.body.classList.toggle('meeting-memo-open', open);
         }
         async function openMeetingCommonPhotos() {
             if (!meeting) return toast('회의를 먼저 선택해주세요.');
@@ -2604,6 +2611,17 @@ ${target.meeting_date} · ${target.title}
         $('backMeeting').onclick = () => showPage('meeting');
         $('commonBtn').onclick = loadCommon;
         initializeMaterialUploadEvents();
+        // 자료 등록 텍스트는 사진 업로드와 별도로 입력 후 자동 저장합니다.
+        $('companyNotice').oninput = () => {
+            clearTimeout(materialTextTimer);
+            setMaterialStatus('saving', '저장 대기...');
+            materialTextTimer = setTimeout(saveCompanyNotice, 600);
+        };
+        $('commonNotice').oninput = () => {
+            clearTimeout(materialTextTimer);
+            setMaterialStatus('saving', '저장 대기...');
+            materialTextTimer = setTimeout(saveCommonNotice, 600);
+        };
         $('materialCompany').onchange = e => {
             materialPart = materialParts.find(p => p.company_id === e.target.value);
             loadMaterialCompany()
