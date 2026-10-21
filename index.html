@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-32 통합</title>
+    <title>위험성평가 회의관리 5-33 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -341,54 +341,70 @@
         .priority {
             padding: 14px
         }
-        .meeting-layout.has-meeting-memo {
-            grid-template-columns: 285px minmax(0, 1fr) 320px;
-            max-width: 1900px;
+        .meeting-memo-drawer {
+            position: fixed;
+            top: 82px;
+            right: 0;
+            width: min(390px, calc(100vw - 54px));
+            height: calc(100vh - 98px);
+            background: #fff;
+            border: 1px solid var(--line);
+            border-right: 0;
+            border-radius: 16px 0 0 16px;
+            box-shadow: -14px 18px 45px #0f172a26;
+            z-index: 35;
+            transform: translateX(100%);
+            transition: transform .22s ease;
+            display: flex;
+            flex-direction: column;
         }
-        .meeting-memo {
-            align-self: start;
-            position: sticky;
-            top: 83px;
-            overflow: hidden;
-        }
-        .meeting-memo-toggle {
-            width: 100%;
+        .meeting-memo-drawer.open { transform: translateX(0); }
+        .meeting-memo-tab {
+            position: absolute;
+            right: 100%;
+            top: 105px;
+            width: 48px;
+            min-height: 150px;
+            padding: 12px 8px;
             border: 0;
+            border-radius: 13px 0 0 13px;
             background: #0f766e;
             color: #fff;
-            padding: 14px 16px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: -8px 8px 20px #0f172a26;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            letter-spacing: 1px;
+        }
+        .meeting-memo-head {
+            padding: 16px;
+            background: #0f766e;
+            color: #fff;
+            border-radius: 15px 0 0 0;
+            font-weight: 900;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
-            font-weight: 900;
-            cursor: pointer;
-            text-align: left;
         }
-        .meeting-memo-toggle .memo-arrow { transition: transform .18s ease; }
-        .meeting-memo.open .meeting-memo-toggle .memo-arrow { transform: rotate(180deg); }
-        .meeting-memo-body { display: none; padding: 14px; }
-        .meeting-memo.open .meeting-memo-body { display: block; }
-        .meeting-memo textarea {
-            width: 100%;
-            min-height: 430px;
-            resize: vertical;
-            padding: 12px;
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            line-height: 1.6;
-        }
-        .meeting-memo-help {
-            margin: 0 0 9px;
-            color: #64748b;
-            font-size: 12px;
-            line-height: 1.5;
-        }
-        .meeting-memo-status {
-            margin-top: 8px;
-            font-size: 12px;
-            font-weight: 900;
-            color: #64748b;
+        .meeting-memo-close { border:0;background:#ffffff24;color:#fff;border-radius:8px;padding:5px 9px;font-weight:900;cursor:pointer; }
+        .meeting-memo-body { padding: 15px; display:flex; flex-direction:column; min-height:0; flex:1; }
+        .meeting-memo-help { margin:0 0 9px;color:#64748b;font-size:12px;line-height:1.5; }
+        .meeting-memo-drawer textarea { width:100%;flex:1;min-height:260px;resize:none;padding:12px;border:1px solid var(--line);border-radius:10px;line-height:1.6; }
+        .meeting-memo-status { margin:8px 0;font-size:12px;font-weight:900;color:#64748b; }
+        .common-photo-view-btn { width:100%;padding:12px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:900;cursor:pointer; }
+        .common-photo-modal-box { width:min(1180px,96vw);max-height:90vh;overflow:auto;background:#eef3f8;border-radius:16px;padding:18px; }
+        .common-photo-modal-head { display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px; }
+        .common-photo-modal-head h2 { margin:0; }
+        .common-photo-gallery { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
+        .common-photo-gallery .photo-card img { height:430px; }
+        .common-photo-caption { padding:11px;white-space:pre-wrap;background:#fff; }
+        @media(max-width:700px){
+            .meeting-memo-drawer{top:68px;height:calc(100vh - 68px);width:calc(100vw - 48px);border-radius:0}
+            .meeting-memo-head{border-radius:0}
+            .meeting-memo-tab{top:90px}
+            .common-photo-gallery{grid-template-columns:1fr}
+            .common-photo-gallery .photo-card img{height:320px}
         }
 
         .meeting-picker {
@@ -733,12 +749,9 @@
         @media(max-width:1000px) {
 
             .material-grid,
-            .meeting-layout,
-            .meeting-layout.has-meeting-memo {
+            .meeting-layout {
                 grid-template-columns: 1fr
             }
-            .meeting-memo { position: static; }
-            .meeting-memo textarea { min-height: 260px; }
 
             .controls {
                 grid-template-columns: 1fr
@@ -1071,7 +1084,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-32 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-33 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1144,7 +1157,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             </div>
         </section>
         <section id="meetingPage" class="page active">
-            <div class="meeting-layout has-meeting-memo">
+            <div class="meeting-layout">
                 <aside class="card priority"><select id="meetingPicker" class="meeting-picker"></select>
 <button id="downloadMinutesBtn" class="summary-link admin-only" style="margin-top:8px;background:#2563eb">회의 결과 Excel 다운로드</button>
                     <hr class="divider">
@@ -1269,18 +1282,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                         </div>
                     </section>
                 </main>
-                <aside id="meetingMemo" class="card meeting-memo open">
-                    <button id="meetingMemoToggle" class="meeting-memo-toggle" type="button" aria-expanded="true">
-                        <span>차주 작업 관련 공지사항 · 회의 메모</span><span class="memo-arrow">⌃</span>
-                    </button>
-                    <div class="meeting-memo-body">
-                        <p class="meeting-memo-help">회의 중 논의되는 내용을 바로 기록할 수 있습니다. 기존 차주 작업 관련 공지사항과 동일한 내용으로 저장됩니다.</p>
-                        <textarea id="meetingMemoText" placeholder="회의 중 나온 내용, 차주 작업 관련 공지사항 등을 입력해주세요."></textarea>
-                        <div id="meetingMemoStatus" class="meeting-memo-status">저장 대기</div>
-                    </div>
-                </aside>
             </div>
         </section>
+        <aside id="meetingMemoDrawer" class="meeting-memo-drawer" aria-hidden="true">
+            <button id="meetingMemoTab" class="meeting-memo-tab" type="button">회의 메모</button>
+            <div class="meeting-memo-head"><span>차주 작업 관련 공지사항 · 회의 메모</span><button id="meetingMemoClose" class="meeting-memo-close" type="button">닫기 ×</button></div>
+            <div class="meeting-memo-body">
+                <p class="meeting-memo-help">회의 중 논의되는 내용과 차주 공지사항을 기록할 수 있습니다. 입력 내용은 자동 저장됩니다.</p>
+                <textarea id="meetingMemoText" placeholder="회의 중 나온 내용, 차주 작업 관련 공지사항 등을 입력해주세요."></textarea>
+                <div id="meetingMemoStatus" class="meeting-memo-status">저장 대기</div>
+                <button id="commonPhotoViewBtn" class="common-photo-view-btn" type="button">공통 전달사진 보러가기</button>
+            </div>
+        </aside>
         <section id="summaryPage" class="page">
             <div class="summary-page"><button id="backMeeting" class="btn">← 회의 진행으로 돌아가기</button>
                 <h1>공통사항</h1>
@@ -1299,6 +1312,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                     <option value="monthly">월간</option>
                 </select></label><label>회의일<input id="newMeetingDate" type="date"></label><label>회의 제목<input id="newMeetingTitle" type="text"></label>
             <div class="meeting-add-actions"><button id="cancelMeetingBtn" class="btn" type="button">취소</button> <button id="saveMeetingBtn" class="btn primary" type="button">회의 저장</button></div>
+        </div>
+    </div>
+    <div id="commonPhotoModal" class="modal hidden">
+        <div class="common-photo-modal-box">
+            <div class="common-photo-modal-head"><h2>공통 전달사진</h2><button id="closeCommonPhotoModal" class="btn" type="button">닫기 ×</button></div>
+            <div id="meetingCommonPhotoGallery" class="common-photo-gallery"></div>
         </div>
     </div>
     <div id="imageModal" class="modal hidden"><button id="closeModal" class="btn close">닫기 ×</button><img id="modalImage">
@@ -2503,6 +2522,29 @@ ${target.meeting_date} · ${target.title}
                 a.href=URL.createObjectURL(blob);a.download=`${meeting.meeting_date}_${meeting.title.replace(/[\\/:*?"<>|]/g,'_')}_회의결과.xlsx`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);const jpgCount=await downloadAllFieldResultJpgs();toast(`회의 결과 Excel과 업체별 JPG ${jpgCount}개를 다운로드했습니다.`)
             }catch(e){console.error(e);toast('회의 결과 다운로드 실패: '+e.message)}finally{btn.disabled=false;btn.textContent='회의 결과 Excel 다운로드'}
         }
+        function setMeetingMemoOpen(open) {
+            $('meetingMemoDrawer').classList.toggle('open', open);
+            $('meetingMemoDrawer').setAttribute('aria-hidden', String(!open));
+            $('meetingMemoTab').textContent = open ? '메모 닫기' : '회의 메모';
+        }
+        async function openMeetingCommonPhotos() {
+            if (!meeting) return toast('회의를 먼저 선택해주세요.');
+            $('meetingCommonPhotoGallery').innerHTML = '<div>공통 전달사진을 불러오는 중...</div>';
+            $('commonPhotoModal').classList.remove('hidden');
+            try {
+                const list = await api(`/rest/v1/attachments?meeting_id=eq.${meeting.id}&attachment_type=eq.common_notice&select=*&order=created_at.asc`);
+                let html = '';
+                for (const a of list) {
+                    const url = await signed(a.object_path);
+                    if (!url) continue;
+                    html += `<article class="photo-card"><img src="${url}" onclick="openModal('${url}')"><div class="common-photo-caption">${a.review_comment || '설명 없음'}</div></article>`;
+                }
+                $('meetingCommonPhotoGallery').innerHTML = html || '<div class="photo-missing" style="grid-column:1/-1">등록된 공통 전달사진이 없습니다.</div>';
+            } catch (e) {
+                $('meetingCommonPhotoGallery').innerHTML = `<div class="err">사진 불러오기 실패: ${e.message}</div>`;
+            }
+        }
+        function closeMeetingCommonPhotos() { $('commonPhotoModal').classList.add('hidden'); }
         async function openSummary() {
             $('summaryNotice').value = meeting.common_notice || '';
             let as = await api(`/rest/v1/attachments?meeting_id=eq.${meeting.id}&attachment_type=eq.common_notice&select=*`);
@@ -2534,10 +2576,11 @@ ${target.meeting_date} · ${target.title}
         $('logout').onclick = () => location.reload();
         $('meetingPicker').onchange = e => openProgressMeeting(e.target.value);
         $('downloadMinutesBtn').onclick = downloadMeetingMinutes;
-        $('meetingMemoToggle').onclick = () => {
-            const memo = $('meetingMemo'), open = memo.classList.toggle('open');
-            $('meetingMemoToggle').setAttribute('aria-expanded', String(open));
-        };
+        $('meetingMemoTab').onclick = () => setMeetingMemoOpen(!$('meetingMemoDrawer').classList.contains('open'));
+        $('meetingMemoClose').onclick = () => setMeetingMemoOpen(false);
+        $('commonPhotoViewBtn').onclick = openMeetingCommonPhotos;
+        $('closeCommonPhotoModal').onclick = closeMeetingCommonPhotos;
+        $('commonPhotoModal').onclick = e => { if (e.target === $('commonPhotoModal')) closeMeetingCommonPhotos(); };
         $('meetingMemoText').oninput = () => {
             clearTimeout(timer);
             $('meetingMemoStatus').textContent = '저장 대기...';
@@ -2546,9 +2589,7 @@ ${target.meeting_date} · ${target.title}
                 $('meetingMemoStatus').textContent = '저장중...';
                 try {
                     const text = $('meetingMemoText').value;
-                    await api(`/rest/v1/meetings?id=eq.${meeting.id}`, {
-                        method: 'PATCH', headers: {Prefer:'return=minimal'}, body: JSON.stringify({common_notice:text})
-                    });
+                    await api(`/rest/v1/meetings?id=eq.${meeting.id}`, {method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({common_notice:text})});
                     meeting.common_notice = text;
                     const idx = meetings.findIndex(m => m.id === meeting.id);
                     if (idx >= 0) meetings[idx].common_notice = text;
