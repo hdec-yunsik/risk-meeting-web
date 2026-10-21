@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-35 통합</title>
+    <title>위험성평가 회의관리 5-36 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -1096,7 +1096,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-35 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-36 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1537,19 +1537,32 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             setMaterialStatus('saving', '저장중...');
             try {
                 const text = $('companyNotice').value;
-                const body = {
-                    meeting_id: materialMeeting.id,
-                    company_id: materialPart.company_id,
-                    finding_text: '업체 전달사항',
-                    discussion_text: text,
-                    created_by: profile.id
-                };
-                await api('/rest/v1/company_findings?on_conflict=meeting_id,company_id', {
-                    method: 'POST',
-                    headers: {Prefer: 'resolution=merge-duplicates,return=representation'},
-                    body: JSON.stringify(body)
-                });
+                const rows = await api(`/rest/v1/company_findings?meeting_id=eq.${materialMeeting.id}&company_id=eq.${materialPart.company_id}&select=id&order=created_at.asc&limit=1`);
+                if (rows?.[0]?.id) {
+                    await api(`/rest/v1/company_findings?id=eq.${rows[0].id}`, {
+                        method: 'PATCH',
+                        headers: {Prefer: 'return=minimal'},
+                        body: JSON.stringify({discussion_text: text})
+                    });
+                } else {
+                    await api('/rest/v1/company_findings', {
+                        method: 'POST',
+                        headers: {Prefer: 'return=representation'},
+                        body: JSON.stringify({
+                            meeting_id: materialMeeting.id,
+                            company_id: materialPart.company_id,
+                            finding_text: '업체 전달사항',
+                            discussion_text: text,
+                            created_by: profile.id
+                        })
+                    });
+                }
                 materialPart.company_message = text;
+                if (meeting?.id === materialMeeting.id && part?.company_id === materialPart.company_id) {
+                    if (finding) finding.discussion_text = text;
+                    if ($('findingMainContractorComment')) $('findingMainContractorComment').value = text;
+                    if ($('findingText')) $('findingText').value = text;
+                }
                 setMaterialStatus('saved', '저장 완료 !');
             } catch (e) {
                 setMaterialStatus('error', '저장 실패');
