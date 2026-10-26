@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-36 통합</title>
+    <title>위험성평가 회의관리 5-37 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -1068,6 +1068,17 @@
         .partner-view-only .risk-toolbar,.partner-view-only .risk-actions,.partner-view-only #complete,.partner-view-only .choose{display:none!important}
         .partner-view-only #findingMainContractorComment{background:#f8fafc;color:#334155;cursor:default}
         .partner-view-only .step[data-view="next"]{display:none!important}
+        .schedule-table{min-width:980px}
+        .schedule-table th,.schedule-table td{text-align:center;vertical-align:middle;border-right:1px solid var(--line);white-space:pre-wrap}
+        .schedule-table th small,.schedule-table td small{color:#64748b;font-weight:700}
+        .schedule-table input,.schedule-table textarea{width:100%;padding:7px;border:1px solid var(--line);border-radius:7px;margin:2px 0}
+        .schedule-table textarea{min-height:56px;resize:vertical}
+        .schedule-empty{color:#64748b;padding:18px!important}
+        .schedule-guide{margin:0 0 14px;padding:14px 16px;border:1px solid #bfdbfe;border-left:6px solid #2563eb;border-radius:11px;background:#eff6ff;color:#1e3a8a;line-height:1.65;font-size:13px}
+        .schedule-guide b{color:#1e40af}
+        .schedule-guide ul{margin:6px 0 0;padding-left:18px}
+        .schedule-guide .warn{margin-top:8px;color:#9a3412;font-weight:800}
+        .partner-view-only #scheduleAddField,.partner-view-only .schedule-manage{display:none!important}
         .admin-comment-preview{margin-top:18px}
         .admin-comment-preview h3{margin-bottom:10px}
         </style>
@@ -1096,7 +1107,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-36 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-37 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1143,6 +1154,22 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                             <div id="companyPreviews" class="previews"></div>
                         </div>
                         <div id="partnerMaterial" class="partner-panel partner-only">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2>차주 공정표</h2><button class="btn primary" type="button" onclick="addSchedule('partner')">+ 행 추가</button></div>
+                            <div class="schedule-guide">
+                                <b>작성 안내</b> · 차주에 진행할 작업을 <b>작업 단위로 1행씩</b> 작성해주세요.
+                                <ul>
+                                    <li><b>작업명</b> : 공사명이 아닌 실제 작업 단위로 작성 (예: OO동 해체, 지하 터파기, 외벽 비계 설치)</li>
+                                    <li><b>작업위치</b> : 주소(지번)만 쓰지 말고 <b>현장 내 위치까지</b> 구체적으로 작성 (예: 지번 / 동·층·방향·구간)</li>
+                                    <li><b>투입 인원</b> : 평상시 투입되는 기본 인원 수 작성</li>
+                                    <li><b>추가 인원</b> : 전주 대비 <b>증원되는 인원</b> 또는 <b>신호수·유도자·감시자 등 안전인력</b>을 직종과 인원으로 작성, 없으면 비워두기</li>
+                                    <li><b>투입장비</b> : 장비명 + 규격 + 대수로 작성 (예: 굴착기 0.6㎥ 2대)</li>
+                                    <li><b>추가 장비</b> : 차주에 <b>신규 반입되거나 추가되는 장비</b>만 작성, 없으면 비워두기</li>
+                                    <li><b>공정</b> : 현재 진행 단계나 층·구간 (예: 8층 해체, 기초 타설 50%)</li>
+                                    <li><b>특이사항</b> : 작업방법 변경, 고위험작업, 동시작업, 장비 반입·해체 일정 등 회의에서 공유가 필요한 내용</li>
+                                </ul>
+                                <div class="warn">※ 추가 인원·장비는 기본 투입분과 구분해 작성해야 회의에서 위험요인을 정확히 검토할 수 있습니다.</div>
+                            </div>
+                            <div class="table-wrap" style="margin-bottom:24px"><table class="tbl schedule-table"><thead><tr><th>작업명</th><th>작업위치</th><th>투입 인원<br><small>(추가 인원)</small></th><th>투입장비<br><small>(추가 장비)</small></th><th>공정</th><th>특이사항</th><th class="schedule-manage">관리</th></tr></thead><tbody id="scheduleBodyPartner"></tbody></table></div>
                             <h2>금주 위험성평가자료</h2>
                             <div id="excelDrop" class="excel-drop">위험성평가 XLSX 파일을 끌어 놓거나 클릭해 등록<br><small>파일 1개</small></div><input id="excelFile" type="file" accept=".xlsx,.xls" hidden>
                             <div id="excelState"></div>
@@ -1184,6 +1211,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                     </div>
                     <section id="field" class="view active">
                         <div class="panel">
+                            <div class="panel-head"><h2>STEP 01. 차주 공정표</h2><button id="scheduleAddField" class="btn primary" type="button" onclick="addSchedule('meeting')">+ 행 추가</button></div>
+                            <div class="table-wrap"><table class="tbl schedule-table"><thead><tr><th>작업명</th><th>작업위치</th><th>투입 인원<br><small>(추가 인원)</small></th><th>투입장비<br><small>(추가 장비)</small></th><th>공정</th><th>특이사항</th><th class="schedule-manage">관리</th></tr></thead><tbody id="scheduleBodyField"></tbody></table></div>
+                        </div>
+                        <div class="panel">
                             <div class="panel-head">
                                 <h2>전주 선정 위험요인 현장 이행결과</h2>
                             </div>
@@ -1210,6 +1241,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                         </div>
                     </section>
                     <section id="risk" class="view">
+                        <div class="panel">
+                            <div class="panel-head"><h2>차주 공정표</h2><small style="color:#64748b;font-weight:800">수정은 STEP 01에서 가능합니다</small></div>
+                            <div class="table-wrap"><table class="tbl schedule-table"><thead><tr><th>작업명</th><th>작업위치</th><th>투입 인원<br><small>(추가 인원)</small></th><th>투입장비<br><small>(추가 장비)</small></th><th>공정</th><th>특이사항</th></tr></thead><tbody id="scheduleBodyRisk"></tbody></table></div>
+                        </div>
                         <div class="panel">
                             <div class="panel-head">
                                 <h2>금주 PTW 위험성평가</h2>
@@ -1636,6 +1671,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
         function queueMainContractorComment(){clearTimeout(commentTimer);commentTimer=setTimeout(saveMainContractorComment,600)}
         async function loadPartnerMaterial() {
+            await loadSchedules('partner');
             let cid = profile.company_id,
                 excel = await api(`/rest/v1/attachments?meeting_id=eq.${materialMeeting.id}&company_id=eq.${cid}&attachment_type=eq.risk_document&select=*&order=created_at.desc&limit=1`);
             $('excelState').innerHTML = excel[0] ? `<div class="excel-file-card"><span>등록 완료: ${excel[0].original_name}</span><button class="danger-btn" onclick="cancelRiskDocument('${excel[0].id}','${excel[0].object_path.replace(/'/g,"&#39;")}')">등록 취소</button></div>` : '';
@@ -1905,9 +1941,90 @@ ${target.meeting_date} · ${target.title}
             [risks, checks, files] = await Promise.all([api(`/rest/v1/risk_items?meeting_id=eq.${meeting.id}&company_id=eq.${cid}&is_deleted=eq.false&select=*&order=sort_order.asc`), api(`/rest/v1/field_checks?meeting_id=eq.${meeting.id}&company_id=eq.${cid}&select=*,risk_items(*)`), api(`/rest/v1/attachments?meeting_id=eq.${meeting.id}&company_id=eq.${cid}&select=*&order=created_at.desc`)]);
             let f = await api(`/rest/v1/company_findings?meeting_id=eq.${meeting.id}&company_id=eq.${cid}&select=*`);
             finding = f[0] || null;
+            await loadSchedules('meeting');
             await renderAll()
         }
 
+        const SCHEDULE_FIELDS = ['work_name','location','workers','extra_workers','equipment','extra_equipment','process','note'];
+        let scheduleRows = {meeting: [], partner: []}, scheduleEditing = {meeting: null, partner: null}, scheduleError = {meeting: '', partner: ''};
+        function esc(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+        function scheduleCtx(ctx) {
+            if (ctx === 'partner') return {meetingId: materialMeeting?.id, companyId: profile?.company_id, editable: true};
+            return {meetingId: meeting?.id, companyId: part?.company_id, editable: profile?.role === 'admin'};
+        }
+        async function loadSchedules(ctx) {
+            const c = scheduleCtx(ctx);
+            scheduleEditing[ctx] = null;
+            if (!c.meetingId || !c.companyId) { scheduleRows[ctx] = []; return renderSchedules(ctx) }
+            try {
+                scheduleRows[ctx] = await api(`/rest/v1/work_schedules?meeting_id=eq.${c.meetingId}&company_id=eq.${c.companyId}&select=*&order=sort_order.asc,created_at.asc`);
+                scheduleError[ctx] = '';
+            } catch (e) {
+                scheduleRows[ctx] = [];
+                scheduleError[ctx] = e.message;
+                console.warn('공정표 조회 실패:', e);
+            }
+            renderSchedules(ctx)
+        }
+        function scheduleCell(main, extra) { return `${esc(main || '-')}${extra ? `<br><small>(${esc(extra)})</small>` : ''}` }
+        function scheduleViewRow(r, ctx, editable) {
+            return `<tr><td>${esc(r.work_name || '-')}</td><td>${esc(r.location || '-')}</td><td>${scheduleCell(r.workers, r.extra_workers)}</td><td>${scheduleCell(r.equipment, r.extra_equipment)}</td><td>${esc(r.process || '-')}</td><td>${esc(r.note || '-')}</td>${editable ? `<td class="schedule-manage"><div class="risk-actions"><button class="btn" type="button" onclick="editSchedule('${ctx}','${r.id}')">수정</button><button class="btn" type="button" onclick="deleteSchedule('${ctx}','${r.id}')">삭제</button></div></td>` : ''}</tr>`
+        }
+        function scheduleEditRow(r, ctx) {
+            const v = k => esc(r?.[k] || ''), id = k => `sch-${ctx}-${k}`;
+            return `<tr class="schedule-edit-row"><td><input id="${id('work_name')}" value="${v('work_name')}" placeholder="작업명"></td><td><textarea id="${id('location')}" placeholder="지번 / 동·층·구간">${v('location')}</textarea></td><td><input id="${id('workers')}" value="${v('workers')}" placeholder="기본 인원 (예: 3명)"><input id="${id('extra_workers')}" value="${v('extra_workers')}" placeholder="추가 인원 (예: 유도자 1명)"></td><td><input id="${id('equipment')}" value="${v('equipment')}" placeholder="기본 장비 (예: 굴착기 2대)"><input id="${id('extra_equipment')}" value="${v('extra_equipment')}" placeholder="추가 장비 (예: 굴착기 1대)"></td><td><input id="${id('process')}" value="${v('process')}" placeholder="공정"></td><td><textarea id="${id('note')}" placeholder="특이사항">${v('note')}</textarea></td><td class="schedule-manage"><div class="risk-actions"><button class="btn primary" type="button" onclick="saveSchedule('${ctx}')">저장</button><button class="btn" type="button" onclick="cancelSchedule('${ctx}')">취소</button></div></td></tr>`
+        }
+        function scheduleBodyHtml(ctx, editable, cols) {
+            if (scheduleError[ctx]) return `<tr><td class="schedule-empty" colspan="${cols}">공정표를 불러오지 못했습니다. work_schedules 테이블 생성 여부를 확인해주세요.</td></tr>`;
+            const list = scheduleRows[ctx], editing = editable ? scheduleEditing[ctx] : null;
+            let html = list.map(r => editing === r.id ? scheduleEditRow(r, ctx) : scheduleViewRow(r, ctx, editable)).join('');
+            if (editing === 'new') html += scheduleEditRow(null, ctx);
+            return html || `<tr><td class="schedule-empty" colspan="${cols}">등록된 공정표가 없습니다.</td></tr>`
+        }
+        function renderSchedules(ctx) {
+            const c = scheduleCtx(ctx);
+            if (ctx === 'partner') { if ($('scheduleBodyPartner')) $('scheduleBodyPartner').innerHTML = scheduleBodyHtml('partner', true, 7); return }
+            if ($('scheduleBodyField')) $('scheduleBodyField').innerHTML = scheduleBodyHtml('meeting', c.editable, c.editable ? 7 : 6);
+            if ($('scheduleBodyRisk')) $('scheduleBodyRisk').innerHTML = scheduleBodyHtml('meeting', false, 6);
+        }
+        function addSchedule(ctx) {
+            const c = scheduleCtx(ctx);
+            if (!c.editable) return toast('업체 계정은 회의 결과를 조회만 할 수 있습니다.');
+            if (!c.meetingId || !c.companyId) return toast('회의와 업체를 먼저 선택해주세요.');
+            if (scheduleError[ctx]) return toast('공정표 테이블(work_schedules)을 먼저 생성해주세요.');
+            scheduleEditing[ctx] = 'new';
+            renderSchedules(ctx);
+            setTimeout(() => $(`sch-${ctx}-work_name`)?.focus(), 0)
+        }
+        function editSchedule(ctx, id) { if (!scheduleCtx(ctx).editable) return; scheduleEditing[ctx] = id; renderSchedules(ctx) }
+        function cancelSchedule(ctx) { scheduleEditing[ctx] = null; renderSchedules(ctx) }
+        async function saveSchedule(ctx) {
+            const c = scheduleCtx(ctx), editing = scheduleEditing[ctx];
+            const body = {};
+            SCHEDULE_FIELDS.forEach(k => body[k] = ($(`sch-${ctx}-${k}`)?.value || '').trim());
+            if (!body.work_name) return toast('작업명을 입력해주세요.');
+            body.updated_by = profile.id;
+            body.updated_at = new Date().toISOString();
+            try {
+                if (editing === 'new') {
+                    await api('/rest/v1/work_schedules', {method: 'POST', headers: {Prefer: 'return=minimal'}, body: JSON.stringify({...body, meeting_id: c.meetingId, company_id: c.companyId, sort_order: scheduleRows[ctx].length + 1, created_by: profile.id})});
+                } else {
+                    await api(`/rest/v1/work_schedules?id=eq.${editing}`, {method: 'PATCH', headers: {Prefer: 'return=minimal'}, body: JSON.stringify(body)});
+                }
+                await loadSchedules(ctx);
+                toast('공정표를 저장했습니다.')
+            } catch (e) { toast('공정표 저장 실패: ' + e.message) }
+        }
+        async function deleteSchedule(ctx, id) {
+            if (!scheduleCtx(ctx).editable) return;
+            const r = scheduleRows[ctx].find(x => x.id === id);
+            if (!confirm(`공정표 행을 삭제할까요?\n${r?.work_name || ''}`)) return;
+            try {
+                await api(`/rest/v1/work_schedules?id=eq.${id}`, {method: 'DELETE', headers: {Prefer: 'return=minimal'}});
+                await loadSchedules(ctx);
+                toast('공정표 행을 삭제했습니다.')
+            } catch (e) { toast('공정표 삭제 실패: ' + e.message) }
+        }
         function cnt(rid, res) {
             return checks.filter(c => c.risk_item_id === rid && c.result === res).length
         }
