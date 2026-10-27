@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>위험성평가 회의관리 5-38 통합</title>
+    <title>위험성평가 회의관리 5-39 통합</title>
     <style>
         :root {
             --navy: #07192c;
@@ -1083,6 +1083,10 @@
         #ptwPanel.collapsed #ptwPanelBody{display:none}
         #ptwPanel.collapsed .panel-head{border-bottom:0}
         .member-comment-panel .comment-grid{padding:16px}
+        .photo-card,.partner-card{position:relative}
+        .file-delete-btn{position:absolute;top:10px;right:10px;z-index:2;border:1px solid #ef4444;background:#fff;color:#b91c1c;border-radius:8px;padding:7px 11px;font-weight:900;cursor:pointer;box-shadow:0 4px 12px #0f172a33}
+        .file-delete-btn:disabled{opacity:.55;cursor:not-allowed}
+        .partner-media{position:relative}
         .admin-comment-preview{margin-top:18px}
         .admin-comment-preview h3{margin-bottom:10px}
         </style>
@@ -1111,7 +1115,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     </section>
     <div id="app" class="hidden">
         <header class="top">
-            <div class="brand">위험성평가 회의관리<small>5-38 INTEGRATED</small></div>
+            <div class="brand">위험성평가 회의관리<small>5-39 INTEGRATED</small></div>
             <nav class="nav"><button data-page="list">회의 목록</button><button data-page="material">자료 등록</button><button data-page="meeting" class="active">회의 진행</button></nav><span id="userName"></span><button id="logout" class="btn">로그아웃</button>
         </header>
         <section id="listPage" class="page">
@@ -1680,7 +1684,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
                     media;
                 if (images[0]) {
                     let url = await signed(images[0].object_path);
-                    media = url ? `<img src="${url}" style="width:100%;height:280px;object-fit:contain;background:#0f172a" onclick="openModal('${url}')">` : `<div class="partner-photo-drop" onclick="document.getElementById('partnerFile-${item.id}').click()">사진 파일이 없어 다시 등록이 필요합니다.</div>`
+                    media = url ? `<div class="partner-media">${fileDeleteButton(images[0], 'partner')}<img src="${url}" style="width:100%;height:280px;object-fit:contain;background:#0f172a;display:block" onclick="openModal('${url}')"></div>` : `<div class="partner-media">${fileDeleteButton(images[0], 'partner')}<div class="partner-photo-drop" onclick="document.getElementById('partnerFile-${item.id}').click()">사진 파일이 없어 다시 등록이 필요합니다.</div></div>`
                 } else media = `<div class="partner-photo-drop" onclick="document.getElementById('partnerFile-${item.id}').click()">사진을 끌어 놓거나 클릭해 등록</div>`;
                 html += `<article class="partner-card"><div class="partner-title">${item.selected_by==='company'?'협력사 선택 위험요인':'당사 선택 위험요인'}</div><div class="partner-info"><div class="partner-line"><b class="risk">위험요인</b><div>${item.risk_items?.hazard||'-'}</div></div><div class="partner-line"><b class="measure">개선대책</b><div>${item.risk_items?.improvement_measure||'-'}</div></div></div>${media}<input id="partnerFile-${item.id}" type="file" accept="image/*" hidden onchange="uploadPartnerFile(this.files[0],'field_check','${item.id}')"></article>`
             }
@@ -2011,6 +2015,35 @@ ${target.meeting_date} · ${target.title}
             $('ptwPanel').classList.toggle('collapsed', !open);
             $('ptwToggle').textContent = open ? '접기 ▲' : '펼치기 ▼';
             $('ptwToggle').setAttribute('aria-expanded', String(open));
+        }
+        // 자료등록 사진 삭제 (잘못 올린 사진 대처용)
+        async function deleteMaterialFile(btn) {
+            const id = btn.dataset.id, path = decodeURIComponent(btn.dataset.path || ''), ctx = btn.dataset.ctx;
+            if (!confirm('등록한 사진을 삭제할까요?\n삭제 후에는 복구할 수 없습니다.')) return;
+            btn.disabled = true; btn.textContent = '삭제중';
+            setMaterialStatus('saving', '삭제중...');
+            try {
+                await api(`/rest/v1/attachments?id=eq.${id}`, {method:'DELETE', headers:{Prefer:'return=minimal'}});
+                if (path) {
+                    const res = await fetch(`${BASE}/storage/v1/object/${BUCKET}/${path}`, {method:'DELETE', headers:{apikey: KEY, Authorization: 'Bearer ' + session.access_token}});
+                    if (!res.ok && res.status !== 404) {
+                        const msg = await res.text();
+                        if (!/not.?found|NoSuchKey/i.test(msg)) console.warn('Storage 파일 삭제 실패:', path, msg);
+                    }
+                }
+                if (ctx === 'common') await loadCommon();
+                else if (ctx === 'company') await loadMaterialCompany();
+                else if (ctx === 'partner') await loadPartnerMaterial();
+                setMaterialStatus('saved', '삭제 완료 !');
+                toast('사진을 삭제했습니다.')
+            } catch (e) {
+                btn.disabled = false; btn.textContent = '삭제';
+                setMaterialStatus('error', '삭제 실패');
+                toast('사진 삭제 실패: ' + e.message)
+            }
+        }
+        function fileDeleteButton(a, ctx) {
+            return `<button class="file-delete-btn" type="button" data-id="${a.id}" data-path="${encodeURIComponent(a.object_path || '')}" data-ctx="${ctx}" onclick="event.stopPropagation();deleteMaterialFile(this)">삭제</button>`
         }
         function cnt(rid, res) {
             return checks.filter(c => c.risk_item_id === rid && c.result === res).length
@@ -2512,10 +2545,14 @@ ${target.meeting_date} · ${target.title}
         }
         async function renderPhotos(target, list) {
             let h = '';
+            const ctx = target === 'commonPreviews' ? 'common' : target === 'companyPreviews' ? 'company' : '';
             for (let a of list) {
                 let u = await signed(a.object_path);
-                if (!u) continue;
-                h += `<div class="photo-card"><img src="${u}" onclick="openModal('${u}')"><textarea data-id="${a.id}" onchange="saveCaption(this)">${a.review_comment||''}</textarea></div>`
+                if (!u) {
+                    if (ctx) h += `<div class="photo-card"><div class="photo-missing" style="height:200px;font-size:16px">파일 누락</div>${fileDeleteButton(a, ctx)}</div>`;
+                    continue;
+                }
+                h += `<div class="photo-card">${ctx ? fileDeleteButton(a, ctx) : ''}<img src="${u}" onclick="openModal('${u}')"><textarea data-id="${a.id}" onchange="saveCaption(this)">${a.review_comment||''}</textarea></div>`
             }
             $(target).innerHTML = h
         }
